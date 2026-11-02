@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>The Raja Saab: Shadows of the Labyrinth | Survival Horror</title>
   
   <!-- Gothic & Cinematic Fonts -->
@@ -19,60 +19,44 @@
     <div id="heartbeat-vignette" class="horror-heartbeat-vignette"></div>
     <div class="horror-scanlines"></div>
 
-    <!-- Top Gothic HUD -->
+    <!-- Clean, Streamlined In-Game HUD -->
     <header id="hud-top">
-      <!-- Villain Proximity Radar -->
-      <div class="hud-group">
-        <div class="threat-card">
+      <!-- Left: Compact Proximity Radar -->
+      <div class="hud-group hud-left">
+        <div class="threat-card" id="threat-card" title="Shadow Proximity">
           <div class="threat-pulse-dot" id="threat-dot"></div>
-          <div class="threat-text-wrap">
-            <div class="threat-label">SHADOW RADAR</div>
-            <div class="threat-status" id="threat-indicator">SAFE (DISTANT)</div>
-          </div>
+          <span class="threat-status" id="threat-indicator">SAFE</span>
         </div>
       </div>
 
-      <!-- Center Mission Objective -->
-      <div class="objective-card">
-        <span class="objective-tag">OBJECTIVE</span>
-        <span class="objective-desc" id="objective-text">STEP 1/3: Walk over Key #1 in South-West Corridor (Follow Golden Arrow ➔)</span>
+      <!-- Center: Slim Objective Tag -->
+      <div class="objective-card" id="objective-card">
+        <span class="objective-icon">🗝️</span>
+        <span class="objective-desc" id="objective-text">Find Key #1 (Follow Gold Arrow ➔)</span>
       </div>
 
-      <!-- Right Group: Key, Heroines, BGM Volume Slider, Mute -->
-      <div class="hud-group">
-        <!-- Key Inventory -->
-        <div class="key-badge">
-          <img src="assets/images/key.png" alt="Key" onerror="this.src='key.png'">
-          <div class="key-text-wrap">
-            <span class="key-title">HELD KEY</span>
-            <span class="key-status" id="key-count-display">NONE (0/1)</span>
-          </div>
+      <!-- Right: Inventory, Rescued Counter, Pause & Mute -->
+      <div class="hud-group hud-right">
+        <!-- Key Badge -->
+        <div class="key-badge" id="key-badge" title="Carried Key">
+          <span class="key-icon">🗝️</span>
+          <span class="key-status" id="key-count-display">0/1</span>
         </div>
 
-        <!-- Heroines Roster -->
-        <div class="heroine-roster">
-          <span class="roster-title">RESCUED:</span>
-          <div class="heroine-slots">
-            <div class="avatar-box" id="roster-heroine-1" title="Malavika (Cage 1)">
-              <img src="assets/images/heroine1.png" alt="Malavika" onerror="this.src='heroine1.png'">
-              <div class="lock-overlay">🔒</div>
-            </div>
-            <div class="avatar-box" id="roster-heroine-2" title="Nidhhi (Cage 2)">
-              <img src="assets/images/heroine2.png" alt="Nidhhi" onerror="this.src='heroine2.png'">
-              <div class="lock-overlay">🔒</div>
-            </div>
-            <div class="avatar-box" id="roster-heroine-3" title="Riddhi (Cage 3)">
-              <img src="assets/images/heroine3.png" alt="Riddhi" onerror="this.src='heroine3.png'">
-              <div class="lock-overlay">🔒</div>
-            </div>
-          </div>
+        <!-- Rescued Heroines Counter -->
+        <div class="heroine-roster-mini" title="Rescued Heroines">
+          <span class="roster-mini-icon">👥</span>
+          <span class="roster-mini-count" id="roster-count">0/3</span>
         </div>
 
-        <!-- BGM Volume Slider Control -->
-        <div class="volume-control-wrap" title="Background Music Volume">
-          <span class="vol-icon" id="vol-icon">🎵</span>
-          <input type="range" id="bgm-volume-slider" min="0" max="100" value="30" class="volume-slider">
+        <!-- Desktop Volume Slider -->
+        <div class="volume-control-wrap" id="volume-wrap" title="Music Volume">
+          <span class="vol-icon">🎵</span>
+          <input type="range" id="bgm-volume-slider" min="0" max="100" value="60" class="volume-slider">
         </div>
+
+        <!-- Pause Button (Universal: Mobile + PC) -->
+        <button id="btn-pause-game" class="hud-btn" title="Pause Game (Esc)">⏸</button>
 
         <!-- Master Sound Toggle -->
         <button id="btn-toggle-sound" class="hud-btn" title="Toggle Sound (M)">🔊</button>
@@ -84,22 +68,22 @@
       <canvas id="gameCanvas"></canvas>
     </main>
 
-    <!-- MiniMap Radar (Top-right below HUD) -->
+    <!-- MiniMap Radar (Compact floating radar) -->
     <div id="minimap-wrapper">
       <canvas id="minimapCanvas"></canvas>
-      <div class="minimap-label">LABYRINTH RADAR</div>
+      <div class="minimap-label">RADAR</div>
     </div>
 
     <!-- 5-Second Head Start Countdown Overlay -->
     <div id="countdown-overlay">
       <div class="countdown-title">THE SHADOW AWAKENS IN</div>
       <div class="countdown-number" id="countdown-number">5</div>
-      <div class="countdown-hint">Head Start Active! Run to South-West to collect Key #1!</div>
+      <div class="countdown-hint">Head Start! Run to collect Key #1!</div>
     </div>
 
-    <!-- Floating Action / Access Denied Notification Banner -->
+    <!-- Floating Action / Access Feedback Banner -->
     <div id="action-prompt-float">
-      <span class="action-pill-key" id="action-prompt-key">[CLICK / E]</span>
+      <span class="action-pill-key" id="action-prompt-key">🗝️</span>
       <span id="action-prompt-text">UNLOCK CAGE</span>
     </div>
 
@@ -114,7 +98,7 @@
       </div>
     </div>
 
-    <!-- Mobile Virtual Joystick / Touch Hint -->
+    <!-- Mobile Virtual Joystick / Touch Indicator -->
     <div id="touch-drag-zone" class="touch-drag-zone">
       <div id="touch-joystick-base" class="touch-joystick-base">
         <div id="touch-joystick-stick" class="touch-joystick-stick"></div>
@@ -122,77 +106,57 @@
     </div>
 
     <!-- ====================================================================
-         MODAL: INTRO / START SCREEN
+         MODAL 1: FIRST OPEN PAGE / START SCREEN (CINEMATIC POSTER)
          ==================================================================== -->
     <div id="start-modal" class="modal-screen active">
-      <div class="gothic-modal-frame">
-        <div class="modal-icon">🗝️</div>
-        <h1 class="modal-title title-crimson">The Raja Saab</h1>
-        <p class="modal-game-subtitle">Shadows of the Labyrinth</p>
-        <p class="modal-subtitle">
-          Three heroines are locked in dungeon cells. Walk over keys to collect them, unlock their cages, and escape before the Shadow catches you!
-        </p>
-
-        <!-- Cast Showcase -->
-        <div class="showcase-grid">
-          <div class="showcase-card">
-            <div class="showcase-avatar hero-border">
-              <img src="assets/images/hero.png" alt="Raja Saab" onerror="this.src='hero.png'">
-            </div>
-            <span class="showcase-name">RAJA SAAB</span>
-          </div>
-          <div class="showcase-card">
-            <div class="showcase-avatar heroine-border">
-              <img src="assets/images/heroine1.png" alt="Malavika" onerror="this.src='heroine1.png'">
-            </div>
-            <span class="showcase-name">MALAVIKA</span>
-          </div>
-          <div class="showcase-card">
-            <div class="showcase-avatar heroine-border">
-              <img src="assets/images/heroine2.png" alt="Nidhhi" onerror="this.src='heroine2.png'">
-            </div>
-            <span class="showcase-name">NIDHHI</span>
-          </div>
-          <div class="showcase-card">
-            <div class="showcase-avatar heroine-border">
-              <img src="assets/images/heroine3.png" alt="Riddhi" onerror="this.src='heroine3.png'">
-            </div>
-            <span class="showcase-name">RIDDHI</span>
+      <div class="poster-home-frame">
+        <div class="poster-content-bottom">
+          <button id="btn-start-game" class="btn-gothic-start">
+            <span class="btn-glint"></span>
+            ENTER LABYRINTH
+          </button>
+          <div class="poster-quick-guide">
+            Touch & drag anywhere to move &bull; Walk into keys to collect &bull; Touch cages to rescue
           </div>
         </div>
-
-        <div class="instruction-grid">
-          <div class="instruction-item">
-            <div class="item-heading">🗝️ AUTO-COLLECT KEYS</div>
-            <div class="item-text">Just walk over any key to collect it automatically! Follow the golden guide arrow.</div>
-          </div>
-          <div class="instruction-item">
-            <div class="item-heading">🧭 SMOOTH CORNER TURNING</div>
-            <div class="item-text">Corner-assist ensures you glide cleanly through every hallway intersection without getting stuck.</div>
-          </div>
-          <div class="instruction-item">
-            <div class="item-heading">👥 FOLLOWER QUEUE</div>
-            <div class="item-text">Key 1 unlocks Malavika. Key 2 unlocks Nidhhi. Key 3 unlocks Riddhi for total victory!</div>
-          </div>
-          <div class="instruction-item">
-            <div class="item-heading">🎮 UNIVERSAL CONTROLS</div>
-            <div class="item-text">Keyboard (WASD/Arrows), Mouse (Click & drag to steer), or Phone (Touch and drag with your finger anywhere).</div>
-          </div>
-        </div>
-
-        <button id="btn-start-game" class="btn-gothic-primary">ENTER THE LABYRINTH</button>
       </div>
     </div>
 
     <!-- ====================================================================
-         MODAL: GAME OVER SCREEN
+         MODAL 2: PAUSE SCREEN (ESC KEY OR PAUSE BUTTON)
+         ==================================================================== -->
+    <div id="pause-modal" class="modal-screen">
+      <div class="gothic-modal-frame">
+        <div class="modal-icon">⏸️</div>
+        <h1 class="modal-title title-gold">GAME PAUSED</h1>
+        <p class="modal-subtitle">The labyrinth waits in darkness...</p>
+
+        <!-- Pause Sound Setting -->
+        <div class="pause-settings-card">
+          <label class="pause-setting-label">Audio Volume</label>
+          <div class="pause-slider-row">
+            <span>🔈</span>
+            <input type="range" id="pause-volume-slider" min="0" max="100" value="60" class="volume-slider">
+            <span>🔊</span>
+          </div>
+        </div>
+
+        <div class="modal-btn-row">
+          <button id="btn-resume-game" class="btn-gothic-primary btn-gothic-gold">RESUME</button>
+          <button id="btn-restart-from-pause" class="btn-gothic-secondary">RESTART</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====================================================================
+         MODAL 3: GAME OVER SCREEN
          ==================================================================== -->
     <div id="gameover-modal" class="modal-screen">
       <div class="gothic-modal-frame">
         <div class="modal-icon">💀</div>
         <h1 class="modal-title title-crimson">YOU LOSE</h1>
         <p class="modal-subtitle">
-          The Shadow caught you in the corridors! Your party was claimed by darkness.
+          The Shadow caught you in the corridors! The labyrinth claimed your soul.
         </p>
 
         <div class="stats-box">
@@ -211,51 +175,20 @@
     </div>
 
     <!-- ====================================================================
-         MODAL: VICTORY SCREEN
+         MODAL 4: VICTORY SCREEN
          ==================================================================== -->
     <div id="victory-modal" class="modal-screen">
       <div class="gothic-modal-frame">
         <div class="modal-icon">✨</div>
-        <h1 class="modal-title title-gold">THE LABYRINTH IS CONQUERED!</h1>
+        <h1 class="modal-title title-gold">VICTORY!</h1>
         <p class="modal-subtitle">
-          Riddhi has been freed! Raja Saab and all 3 heroines have escaped the labyrinth!
+          All 3 heroines have been rescued! Raja Saab and his party escaped the labyrinth!
         </p>
-
-        <div class="showcase-grid">
-          <div class="showcase-card">
-            <div class="showcase-avatar hero-border">
-              <img src="assets/images/hero.png" alt="Raja Saab" onerror="this.src='hero.png'">
-            </div>
-            <span class="showcase-name">RAJA SAAB</span>
-          </div>
-          <div class="showcase-card">
-            <div class="showcase-avatar heroine-border">
-              <img src="assets/images/heroine1.png" alt="Malavika" onerror="this.src='heroine1.png'">
-            </div>
-            <span class="showcase-name">MALAVIKA</span>
-          </div>
-          <div class="showcase-card">
-            <div class="showcase-avatar heroine-border">
-              <img src="assets/images/heroine2.png" alt="Nidhhi" onerror="this.src='heroine2.png'">
-            </div>
-            <span class="showcase-name">NIDHHI</span>
-          </div>
-          <div class="showcase-card">
-            <div class="showcase-avatar heroine-border">
-              <img src="assets/images/heroine3.png" alt="Riddhi" onerror="this.src='heroine3.png'">
-            </div>
-            <span class="showcase-name">RIDDHI</span>
-          </div>
-        </div>
 
         <div class="stats-box">
           <div class="stat-item">
             <span class="stat-val" id="vic-total-time">00:00</span>
             <span class="stat-lbl">Escape Time</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-val">3 / 3</span>
-            <span class="stat-lbl">Keys Used</span>
           </div>
           <div class="stat-item">
             <span class="stat-val">3 / 3</span>
@@ -269,8 +202,8 @@
 
   </div>
 
-  <!-- Audio Elements from Audio Pack -->
-  <audio id="audio-loop-start" loop preload="auto">
+  <!-- Audio Elements from Audio Pack (No loop on start, strict volumes) -->
+  <audio id="audio-loop-start" preload="auto">
     <source src="assets/audio/loop_on_start.mp3" type="audio/mpeg">
     <source src="loop_on_start.mp3" type="audio/mpeg">
   </audio>

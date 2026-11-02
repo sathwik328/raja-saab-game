@@ -33,7 +33,7 @@
   class AudioPackManager {
     constructor() {
       this.isMuted = false;
-      this.bgmVolume = 0.30;
+      this.masterVolume = 0.60;
       this.audioElements = {
         loopStart: document.getElementById('audio-loop-start'),
         bgm: document.getElementById('audio-bgm'),
@@ -43,6 +43,11 @@
         heroine3: document.getElementById('audio-heroine3')
       };
 
+      if (this.audioElements.loopStart) {
+        this.audioElements.loopStart.loop = false;
+      }
+
+      this.hasPlayedStartOnce = false;
       // Voice queue to prevent overlap
       this.voiceQueue = [];
       this.isVoicePlaying = false;
@@ -58,14 +63,9 @@
     }
 
     initAudio() {
-      if (this.audioElements.loopStart) {
-        this.audioElements.loopStart.volume = 0.45;
-      }
-      if (this.audioElements.bgm) {
-        this.audioElements.bgm.volume = this.bgmVolume;
-      }
+      this.applyVolumes();
 
-      // Add ended listener to voice clips to process queue sequentially
+      // Process sequential audio queue on clip end
       ['onSee', 'run1', 'die1', 'heroine3'].forEach(key => {
         const el = this.audioElements[key];
         if (el) {
@@ -78,11 +78,33 @@
       });
     }
 
-    playStartLoop() {
-      if (this.isMuted) return;
+    applyVolumes() {
+      if (this.isMuted) {
+        Object.values(this.audioElements).forEach(el => { if (el) el.volume = 0; });
+        return;
+      }
+      // loopStart preset to 40%
       if (this.audioElements.loopStart) {
+        this.audioElements.loopStart.volume = Math.min(1, Math.max(0, 0.40 * (this.masterVolume / 0.60)));
+      }
+      // BGM preset to 60%
+      if (this.audioElements.bgm) {
+        this.audioElements.bgm.volume = this.masterVolume;
+      }
+      // Voice effects preset to 60%
+      ['onSee', 'run1', 'die1', 'heroine3'].forEach(key => {
+        const el = this.audioElements[key];
+        if (el) el.volume = this.masterVolume;
+      });
+    }
+
+    playStartOnce() {
+      if (this.isMuted || this.hasPlayedStartOnce) return;
+      if (this.audioElements.loopStart) {
+        this.hasPlayedStartOnce = true;
+        this.audioElements.loopStart.loop = false;
         this.audioElements.loopStart.currentTime = 0;
-        this.audioElements.loopStart.volume = 0.45;
+        this.audioElements.loopStart.volume = Math.min(1, Math.max(0, 0.40 * (this.masterVolume / 0.60)));
         this.audioElements.loopStart.play().catch(() => {});
       }
     }
@@ -97,7 +119,20 @@
     playBGM() {
       if (this.isMuted) return;
       if (this.audioElements.bgm) {
-        this.audioElements.bgm.volume = this.bgmVolume;
+        this.audioElements.bgm.volume = this.masterVolume;
+        this.audioElements.bgm.play().catch(() => {});
+      }
+    }
+
+    pauseBGM() {
+      if (this.audioElements.bgm) {
+        this.audioElements.bgm.pause();
+      }
+    }
+
+    resumeBGM() {
+      if (this.isMuted) return;
+      if (this.audioElements.bgm && STATE.phase === 'PLAYING') {
         this.audioElements.bgm.play().catch(() => {});
       }
     }
@@ -105,14 +140,13 @@
     stopBGM() {
       if (this.audioElements.bgm) {
         this.audioElements.bgm.pause();
+        this.audioElements.bgm.currentTime = 0;
       }
     }
 
-    setBGMVolume(val) {
-      this.bgmVolume = Math.max(0, Math.min(1, val));
-      if (this.audioElements.bgm && !this.isMuted) {
-        this.audioElements.bgm.volume = this.bgmVolume;
-      }
+    setMasterVolume(val) {
+      this.masterVolume = Math.max(0, Math.min(1, val));
+      this.applyVolumes();
     }
 
     // Queue voice clip to ensure sequential playback (on_see first, then run1)
@@ -141,7 +175,7 @@
         this.isVoicePlaying = true;
         this.activeVoiceEl = el;
         el.currentTime = 0;
-        el.volume = 1.0;
+        el.volume = this.masterVolume;
         el.play().catch(() => {
           this.isVoicePlaying = false;
           this.playNextInQueue();
@@ -179,30 +213,38 @@
       this.voiceQueue = [];
       if (this.activeVoiceEl) {
         this.activeVoiceEl.pause();
+        this.activeVoiceEl.currentTime = 0;
       }
+      this.isVoicePlaying = false;
       this.stopBGM();
+      this.stopStartLoop();
 
       if (this.audioElements.die1 && !this.isMuted) {
         this.audioElements.die1.currentTime = 0;
-        this.audioElements.die1.volume = 1.0;
+        this.audioElements.die1.volume = this.masterVolume;
         this.audioElements.die1.play().catch(() => {});
       }
     }
 
     triggerHeroine3() {
-      this.queueVoice('heroine3');
+      this.voiceQueue = [];
+      if (this.activeVoiceEl) {
+        this.activeVoiceEl.pause();
+        this.activeVoiceEl.currentTime = 0;
+      }
+      this.isVoicePlaying = false;
+      this.stopBGM();
+
+      if (this.audioElements.heroine3 && !this.isMuted) {
+        this.audioElements.heroine3.currentTime = 0;
+        this.audioElements.heroine3.volume = this.masterVolume;
+        this.audioElements.heroine3.play().catch(() => {});
+      }
     }
 
     toggleMute() {
       this.isMuted = !this.isMuted;
-      if (this.isMuted) {
-        if (this.audioElements.loopStart) this.audioElements.loopStart.volume = 0;
-        if (this.audioElements.bgm) this.audioElements.bgm.volume = 0;
-        if (this.activeVoiceEl) this.activeVoiceEl.volume = 0;
-      } else {
-        if (this.audioElements.bgm) this.audioElements.bgm.volume = this.bgmVolume;
-        if (this.activeVoiceEl) this.activeVoiceEl.volume = 1.0;
-      }
+      this.applyVolumes();
       return this.isMuted;
     }
   }
@@ -290,6 +332,7 @@
   // --------------------------------------------------------------------------
   const STATE = {
     phase: 'INTRO',
+    isPaused: false,
     countdownTime: 5.0,
     startTime: 0,
     currentStep: 1, // 1: Key 1, 2: Cage 1, 3: Key 2, 4: Cage 2, 5: Key 3, 6: Cage 3
@@ -436,6 +479,7 @@
   const countdownNumberEl = document.getElementById('countdown-number');
   const objectiveTextEl = document.getElementById('objective-text');
   const keyCountDisplayEl = document.getElementById('key-count-display');
+  const rosterCountEl = document.getElementById('roster-count');
   const threatIndicatorEl = document.getElementById('threat-indicator');
   const threatDotEl = document.getElementById('threat-dot');
   const heartbeatVignetteEl = document.getElementById('heartbeat-vignette');
@@ -444,15 +488,20 @@
   const actionPromptKey = document.getElementById('action-prompt-key');
   const dialogueBoxEl = document.getElementById('dialogue-box');
   const bgmVolumeSlider = document.getElementById('bgm-volume-slider');
+  const pauseVolumeSlider = document.getElementById('pause-volume-slider');
 
   const touchJoystickBase = document.getElementById('touch-joystick-base');
   const touchJoystickStick = document.getElementById('touch-joystick-stick');
 
   const startModal = document.getElementById('start-modal');
+  const pauseModal = document.getElementById('pause-modal');
   const gameoverModal = document.getElementById('gameover-modal');
   const victoryModal = document.getElementById('victory-modal');
 
   const btnStartGame = document.getElementById('btn-start-game');
+  const btnPauseGame = document.getElementById('btn-pause-game');
+  const btnResumeGame = document.getElementById('btn-resume-game');
+  const btnRestartFromPause = document.getElementById('btn-restart-from-pause');
   const btnRestartGame = document.getElementById('btn-restart-game');
   const btnPlayAgain = document.getElementById('btn-play-again');
   const btnToggleSound = document.getElementById('btn-toggle-sound');
@@ -776,7 +825,7 @@
     countdownOverlay.classList.add('active');
     updateCountdownUI(5);
 
-    updateObjective('STEP 1/3: Walk over Key #1 in South-West Corridor (Follow Golden Arrow ➔)');
+    updateObjective('Find Key #1 (Follow Gold Arrow ➔)');
   }
 
   function updateCountdownUI(val) {
@@ -784,10 +833,10 @@
       countdownNumberEl.textContent = val;
     } else {
       countdownNumberEl.textContent = 'THE SHADOW AWAKENS!';
-      countdownNumberEl.style.fontSize = '40px';
+      countdownNumberEl.style.fontSize = '32px';
       setTimeout(() => {
         countdownOverlay.classList.remove('active');
-        countdownNumberEl.style.fontSize = '80px';
+        countdownNumberEl.style.fontSize = '40px';
       }, 1400);
     }
   }
@@ -820,6 +869,19 @@
     if (objectiveTextEl) objectiveTextEl.textContent = text;
   }
 
+  function showActionFeedback(text, isDenied = false) {
+    if (!actionPromptFloat || !actionPromptText) return;
+    actionPromptText.textContent = text;
+    if (actionPromptKey) actionPromptKey.textContent = isDenied ? '🔒' : '🗝️';
+    actionPromptFloat.className = isDenied ? 'active denied' : 'active';
+    setTimeout(() => {
+      if (actionPromptFloat) {
+        actionPromptFloat.classList.remove('active');
+        actionPromptFloat.classList.remove('denied');
+      }
+    }, 1500);
+  }
+
   function triggerVignettePulse(intensity) {
     if (!heartbeatVignetteEl) return;
     heartbeatVignetteEl.style.opacity = Math.min(0.9, intensity * 0.85);
@@ -828,7 +890,7 @@
     }, 180);
   }
 
-  // AUTO-COLLECT KEYS ON STEP OVER + CAGE PROMPT
+  // AUTO-COLLECT KEYS ON STEP OVER + PROXIMITY CAGE UNLOCK
   function checkInteractions() {
     // 1. Auto-Collect Key on step-over!
     keys.forEach(k => {
@@ -840,18 +902,15 @@
       }
     });
 
-    // 2. Cage Interactions
+    // 2. Cage Interactions with Proximity Auto-Unlock (Effortless on Mobile & PC)
     let prompt = null;
     cages.forEach(c => {
       if (!c.unlocked) {
         const dist = Math.hypot(hero.x - c.x, hero.y - c.y);
         if (dist <= INTERACTION_RADIUS) {
           if (STATE.hasKey && STATE.currentStep === c.id * 2) {
-            prompt = {
-              type: 'cage',
-              target: c,
-              label: `UNLOCK ${c.name.toUpperCase()}`
-            };
+            // Auto-unlock immediately upon approaching the cage!
+            unlockCage(c);
           } else {
             prompt = {
               type: 'cage_locked',
@@ -865,17 +924,14 @@
 
     STATE.activePrompt = prompt;
 
-    if (prompt) {
+    if (prompt && !actionPromptFloat.classList.contains('active')) {
       actionPromptFloat.classList.add('active');
       actionPromptText.textContent = prompt.label;
       if (prompt.type === 'cage_locked') {
         actionPromptFloat.classList.add('denied');
-        actionPromptKey.textContent = '[LOCKED]';
-      } else {
-        actionPromptFloat.classList.remove('denied');
-        actionPromptKey.textContent = '[CLICK / E]';
+        if (actionPromptKey) actionPromptKey.textContent = '🔒';
       }
-    } else {
+    } else if (!prompt && actionPromptFloat.classList.contains('denied')) {
       actionPromptFloat.classList.remove('active');
       actionPromptFloat.classList.remove('denied');
     }
@@ -888,15 +944,8 @@
     if (type === 'cage') {
       unlockCage(target);
     } else if (type === 'cage_locked') {
-      // Vibrate / shake the cage bars and show denied alert!
       target.shakeTimer = 0.5;
-      actionPromptFloat.classList.add('denied');
-      actionPromptText.textContent = `🔒 KEY #${target.id} REQUIRED! ACCESS DENIED`;
-      setTimeout(() => {
-        if (STATE.activePrompt && STATE.activePrompt.target === target) {
-          actionPromptText.textContent = `KEY #${target.id} REQUIRED`;
-        }
-      }, 1200);
+      showActionFeedback(`KEY #${target.id} REQUIRED!`, true);
     }
   }
 
@@ -920,18 +969,20 @@
       });
     }
 
-    keyCountDisplayEl.textContent = `KEY #${keyObj.id} READY`;
+    keyCountDisplayEl.textContent = '1/1';
     keyCountDisplayEl.classList.add('ready');
+
+    showActionFeedback(`KEY #${keyObj.id} ACQUIRED!`);
 
     if (keyObj.id === 1) {
       STATE.currentStep = 2;
-      updateObjective('STEP 1/3: Approach Cage #1 in South-East to Unlock Malavika');
+      updateObjective('Free Malavika in South-East Cell');
     } else if (keyObj.id === 2) {
       STATE.currentStep = 4;
-      updateObjective('STEP 2/3: Approach Cage #2 in North-East to Unlock Nidhhi');
+      updateObjective('Free Nidhhi in East Cell');
     } else if (keyObj.id === 3) {
       STATE.currentStep = 6;
-      updateObjective('STEP 3/3: Approach Cage #3 in West Chamber to Free Riddhi!');
+      updateObjective('Free Riddhi in North-West Chamber');
     }
 
     checkInteractions();
@@ -942,11 +993,12 @@
     STATE.hasKey = false;
     STATE.heroinesRescued++;
 
-    keyCountDisplayEl.textContent = 'NONE (0/1)';
+    keyCountDisplayEl.textContent = '0/1';
     keyCountDisplayEl.classList.remove('ready');
 
-    const rosterBox = document.getElementById(`roster-heroine-${cageObj.id}`);
-    if (rosterBox) rosterBox.classList.add('rescued');
+    if (rosterCountEl) {
+      rosterCountEl.textContent = `${STATE.heroinesRescued}/3`;
+    }
 
     followers.push({
       id: cageObj.id,
@@ -970,15 +1022,18 @@
       });
     }
 
+    showActionFeedback(`🔓 ${cageObj.name.toUpperCase()} RESCUED!`);
+
     if (cageObj.id === 1) {
       STATE.currentStep = 3;
       keys[1].visible = true;
-      updateObjective('STEP 2/3: Malavika Freed! Walk over Key #2 in Grand Central Hall');
+      updateObjective('Find Key #2 in Grand Central Hall');
     } else if (cageObj.id === 2) {
       STATE.currentStep = 5;
       keys[2].visible = true;
-      updateObjective('STEP 3/3: Nidhhi Freed! Walk over Key #3 in North-West Corridors');
+      updateObjective('Find Key #3 in North-West Corridors');
     } else if (cageObj.id === 3) {
+      updateObjective('All 3 Heroines Rescued!');
       triggerVictory();
     }
 
@@ -1027,8 +1082,24 @@
     }, 800);
   }
 
+  function togglePause() {
+    if (STATE.phase !== 'PLAYING' && STATE.phase !== 'COUNTDOWN') return;
+    STATE.isPaused = !STATE.isPaused;
+
+    if (STATE.isPaused) {
+      if (pauseModal) pauseModal.classList.add('active');
+      audioPack.pauseBGM();
+      if (btnPauseGame) btnPauseGame.textContent = '▶️';
+    } else {
+      if (pauseModal) pauseModal.classList.remove('active');
+      audioPack.resumeBGM();
+      if (btnPauseGame) btnPauseGame.textContent = '⏸';
+    }
+  }
+
   function resetGame() {
     STATE.phase = 'PLAYING';
+    STATE.isPaused = false;
     STATE.hasKey = false;
     STATE.keysCollectedTotal = 0;
     STATE.heroinesRescued = 0;
@@ -1048,13 +1119,13 @@
     keys[1].collected = false; keys[1].visible = false;
     keys[2].collected = false; keys[2].visible = false;
 
-    keyCountDisplayEl.textContent = 'NONE (0/1)';
+    keyCountDisplayEl.textContent = '0/1';
     keyCountDisplayEl.classList.remove('ready');
 
-    [1, 2, 3].forEach(id => {
-      const box = document.getElementById(`roster-heroine-${id}`);
-      if (box) box.classList.remove('rescued');
-    });
+    if (rosterCountEl) rosterCountEl.textContent = '0/3';
+
+    if (btnPauseGame) btnPauseGame.textContent = '⏸';
+    if (pauseModal) pauseModal.classList.remove('active');
 
     gameoverModal.classList.remove('active');
     victoryModal.classList.remove('active');
@@ -1069,6 +1140,11 @@
   function setupInputListeners() {
     // Keyboard
     window.addEventListener('keydown', e => {
+      if (e.code === 'Escape') {
+        e.preventDefault();
+        togglePause();
+        return;
+      }
       if (keysDown.hasOwnProperty(e.code)) keysDown[e.code] = true;
       if (e.code === 'KeyE' || e.code === 'Space') executeInteraction();
       if (e.code === 'KeyM') {
@@ -1081,8 +1157,30 @@
       if (keysDown.hasOwnProperty(e.code)) keysDown[e.code] = false;
     });
 
+    // Pause button on HUD
+    if (btnPauseGame) {
+      btnPauseGame.addEventListener('click', e => {
+        e.stopPropagation();
+        togglePause();
+      });
+    }
+
+    if (btnResumeGame) {
+      btnResumeGame.addEventListener('click', () => {
+        if (STATE.isPaused) togglePause();
+      });
+    }
+
+    if (btnRestartFromPause) {
+      btnRestartFromPause.addEventListener('click', () => {
+        if (STATE.isPaused) togglePause();
+        resetGame();
+      });
+    }
+
     // Touch & Mouse Dragging / Virtual Joystick
     function handlePointerStart(clientX, clientY) {
+      if (STATE.isPaused) return;
       if (STATE.phase !== 'COUNTDOWN' && STATE.phase !== 'PLAYING') return;
       pointerInput.active = true;
       pointerInput.startX = clientX;
@@ -1103,7 +1201,7 @@
     }
 
     function handlePointerMove(clientX, clientY) {
-      if (!pointerInput.active) return;
+      if (!pointerInput.active || STATE.isPaused) return;
       pointerInput.currX = clientX;
       pointerInput.currY = clientY;
 
@@ -1111,12 +1209,12 @@
       const dy = clientY - pointerInput.startY;
       const dist = Math.hypot(dx, dy);
 
-      if (dist > 8) {
-        pointerInput.moveX = Math.max(-1, Math.min(1, dx / 40));
-        pointerInput.moveY = Math.max(-1, Math.min(1, dy / 40));
+      if (dist > 6) {
+        pointerInput.moveX = Math.max(-1, Math.min(1, dx / 36));
+        pointerInput.moveY = Math.max(-1, Math.min(1, dy / 36));
 
         if (touchJoystickStick) {
-          const maxStick = 32;
+          const maxStick = 30;
           const sx = (dx / dist) * Math.min(dist, maxStick);
           const sy = (dy / dist) * Math.min(dist, maxStick);
           touchJoystickStick.style.transform = `translate(calc(-50% + ${sx}px), calc(-50% + ${sy}px))`;
@@ -1138,7 +1236,7 @@
 
     // Touch Events
     window.addEventListener('touchstart', e => {
-      // Don't intercept HUD clicks
+      // Don't intercept HUD clicks or modal buttons
       if (e.target.closest('#hud-top') || e.target.closest('.modal-screen') || e.target.closest('#action-prompt-float')) return;
       const t = e.touches[0];
       handlePointerStart(t.clientX, t.clientY);
@@ -1173,11 +1271,22 @@
       executeInteraction();
     });
 
-    // BGM Volume Slider
+    // Synchronize BGM & Pause Volume Sliders
+    function syncVolume(val) {
+      audioPack.setMasterVolume(val);
+      if (bgmVolumeSlider) bgmVolumeSlider.value = Math.round(val * 100);
+      if (pauseVolumeSlider) pauseVolumeSlider.value = Math.round(val * 100);
+    }
+
     if (bgmVolumeSlider) {
       bgmVolumeSlider.addEventListener('input', e => {
-        const val = parseFloat(e.target.value) / 100;
-        audioPack.setBGMVolume(val);
+        syncVolume(parseFloat(e.target.value) / 100);
+      });
+    }
+
+    if (pauseVolumeSlider) {
+      pauseVolumeSlider.addEventListener('input', e => {
+        syncVolume(parseFloat(e.target.value) / 100);
       });
     }
 
@@ -1187,19 +1296,20 @@
       btnToggleSound.textContent = muted ? '🔇' : '🔊';
     });
 
-    // Start / Restart
+    // Start / Restart buttons
     btnStartGame.addEventListener('click', () => {
       startModal.classList.remove('active');
+      audioPack.stopStartLoop();
       resetGame();
     });
 
     btnRestartGame.addEventListener('click', () => { resetGame(); });
     btnPlayAgain.addEventListener('click', () => { resetGame(); });
 
-    // Initial click on start modal plays intro loop theme
-    window.addEventListener('click', () => {
+    // Initial user interaction plays intro theme once (40% volume, not looped)
+    window.addEventListener('pointerdown', () => {
       if (STATE.phase === 'INTRO') {
-        audioPack.playStartLoop();
+        audioPack.playStartOnce();
       }
     }, { once: true });
   }
@@ -1874,34 +1984,36 @@
     const dt = Math.min((now - lastFrameTime) / 1000, 0.1);
     lastFrameTime = now;
 
-    if (STATE.phase === 'COUNTDOWN') {
-      STATE.countdownTime -= dt;
-      const currentSeconds = Math.ceil(STATE.countdownTime);
-      if (currentSeconds !== parseInt(countdownNumberEl.textContent)) {
-        updateCountdownUI(currentSeconds);
-      }
-      if (STATE.countdownTime <= 0) {
-        updateCountdownUI(0);
-        onCountdownFinished();
-      }
-      updateHero();
-    } else if (STATE.phase === 'PLAYING') {
-      updateHero();
-      updateVillain(dt);
+    if (!STATE.isPaused) {
+      if (STATE.phase === 'COUNTDOWN') {
+        STATE.countdownTime -= dt;
+        const currentSeconds = Math.ceil(STATE.countdownTime);
+        if (currentSeconds !== parseInt(countdownNumberEl.textContent)) {
+          updateCountdownUI(currentSeconds);
+        }
+        if (STATE.countdownTime <= 0) {
+          updateCountdownUI(0);
+          onCountdownFinished();
+        }
+        updateHero();
+      } else if (STATE.phase === 'PLAYING') {
+        updateHero();
+        updateVillain(dt);
 
-      const dist = Math.hypot(hero.x - villain.x, hero.y - villain.y);
-      if (dist < 260) {
-        threatIndicatorEl.textContent = 'EXTREME DANGER!';
-        threatIndicatorEl.style.color = '#ff1f43';
-        threatDotEl.className = 'threat-pulse-dot danger';
-      } else if (dist < 460) {
-        threatIndicatorEl.textContent = 'APPROACHING...';
-        threatIndicatorEl.style.color = '#f59e0b';
-        threatDotEl.className = 'threat-pulse-dot caution';
-      } else {
-        threatIndicatorEl.textContent = 'SAFE (DISTANT)';
-        threatIndicatorEl.style.color = '#22c55e';
-        threatDotEl.className = 'threat-pulse-dot';
+        const dist = Math.hypot(hero.x - villain.x, hero.y - villain.y);
+        if (dist < 260) {
+          threatIndicatorEl.textContent = 'CHASE!';
+          threatIndicatorEl.style.color = '#ff1f43';
+          threatDotEl.className = 'threat-pulse-dot danger';
+        } else if (dist < 460) {
+          threatIndicatorEl.textContent = 'NEAR';
+          threatIndicatorEl.style.color = '#f59e0b';
+          threatDotEl.className = 'threat-pulse-dot caution';
+        } else {
+          threatIndicatorEl.textContent = 'SAFE';
+          threatIndicatorEl.style.color = '#22c55e';
+          threatDotEl.className = 'threat-pulse-dot';
+        }
       }
     }
 
